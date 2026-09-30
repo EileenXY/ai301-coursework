@@ -15,8 +15,7 @@ label is not graded.
 
 **GitHub username**
 
-[Your GitHub username, exactly as it appears on your profile — no `@`, no profile URL. Your
-comments upstream are identified by this name.]
+EileenXY
 
 ---
 
@@ -24,16 +23,54 @@ comments upstream are identified by this name.]
 
 **Claim comment**
 
-[Link to the comment where you claimed the issue. Use the comment's own permalink, not the
-issue page on its own. **Then paste the text of that comment underneath the link** — the
-pasted text is what this field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s1/issues/72#issuecomment-5904035945
+
+Hi, I’m going to look into issue #72 and test the malformed stored-hash case in `verify_password` on my own setup. I’ll document the environment, the exact commands I run, and what I observe, then post the results here before making any code changes.
 
 **Reproduction comment**
 
-[Link to the comment where you posted your reproduction. It must record the environment
-(OS, relevant versions, code state), steps a stranger could follow, and what you observed.
-**Then paste the text of that comment underneath the link** — the pasted text is what this
-field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s1/issues/72#issuecomment-5904838571
+
+I was able to reproduce this issue on my setup.
+
+Environment:
+
+Windows
+Python 3.12.10, running inside the project's .venv
+pytest 9.1.1
+passlib 1.7.4
+bcrypt 4.3.0
+Repository commit: f89c06f
+Steps:
+
+From the repository root with the project virtual environment activated, I ran:
+python -m pytest tests/unit/test_security.py::TestSecurity::test_verify_with_wrong_hash_format -vv -rxX
+
+The test was reported as XFAIL with:
+
+issue #72 (manifest H-05): password verify raises UnknownHashError instead of returning False
+
+I then ran the same test with xfail behavior disabled:
+python -m pytest tests/unit/test_security.py::TestSecurity::test_verify_with_wrong_hash_format -vv --runxfail
+
+This produced:
+
+passlib.exc.UnknownHashError: hash could not be identified
+
+and pytest reported:
+
+FAILED tests/unit/test_security.py::TestSecurity::test_verify_with_wrong_hash_format
+1 failed, 1 warning
+
+Expected behavior:
+verify_password should return False when the stored hash is malformed or unrecognized.
+
+Actual behavior:
+The malformed stored hash causes passlib.exc.UnknownHashError to escape instead.
+
+I did not modify the code while reproducing the issue; the working tree remained clean.
+
+
 
 ## Eval iterations
 
@@ -42,28 +79,25 @@ fields.
 
 **Run history**
 
-[The agreement score of each run you did, in order. A single run is a complete answer if
-only one run occurred. **The last score in your list must match the agreement line in the
-`eval-run.txt` you committed** — that file is the record of your final run.]
+3/3 scored items
+
+18/20 scored items
+
+18/20 scored items (bar: 18/20: PASS)
 
 **Package analysis**
 
-[Pick one scored package (`pkg-01` through `pkg-20` — the four `calib-` packages are never
-scored). Name it by id, say what your rubric decided and what the gold label said, and
-explain why your rubric read it that way.]
+pkg-01 — My rubric decided `reject`, while the gold label was `accept`. The eval result specifically marked the `environment` check as failed. The package records HTTPie 3.2.4, Python 3.12.4, multidict 6.6.0, and macOS 14.5 (arm64), and it provides an offline reproduction plus a control run. My environment check was stricter about confirming that the reproduction environment matched the issue's target environment or explicitly calling out relevant differences, so it rejected this package even though the gold label accepted the evidence as sufficient.
 
 **Check rationale**
 
-[Quote one check from the `rubric.md` you uploaded to `tools/repro-check/`, exactly as it reads now.
-Then say why it reads that way — what you revised to get there, or what you rejected in
-favour of it.]
+| behavior | The artifacts in the repro report, such as output excerpts, logs, or screenshots, read against the behavior described in the issue and the Behavior shown section of `references/evidence-guide.md`. | Pass if the artifacts show the behavior described by the issue, or clearly show that the behavior did not occur. Evidence of only a different or adjacent behavior does not pass. | required |
+
+I kept this check required because a reproduction should not pass merely because some failure or unusual output occurred. The evidence has to be compared with the behavior described in the issue. I also allowed clear evidence that the reported behavior did not occur, because an honestly evidenced cannot-reproduce result can still be a valid reproduction report. I rejected a looser rule that would accept related or adjacent failures, because that could allow a report to claim the wrong behavior.
 
 **Trade-offs**
 
-[Every check gives something up. Any one of these is a complete answer: a package whose
-result it changes, a canary you re-ran with `--only`, a case you accept it will miss, or a
-stated reason nothing changed elsewhere. "Nothing changed, and here is how I know" earns
-the point in full when the reason follows.]
+My required checks favor avoiding unsupported reproduction claims, but that strictness can reject packages that the gold labels consider acceptable. In the final run, `pkg-01` was gold `accept` but my rubric returned `reject` because of the `environment` check, and `pkg-09` was gold `accept` but my rubric returned `reject` because of the `behavior` check. I accepted this trade-off rather than loosening the checks, because the final run still reached 18/20 and passed every category floor, while keeping environment and behavior evidence required.
 
 ---
 
