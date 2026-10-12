@@ -13,35 +13,141 @@ label is not graded.
 
 ## Posted upstream
 
+## Posted upstream
+
 **GitHub username**
 
-[Your GitHub username, exactly as it appears on your profile - no @, no
-profile URL. Your comment upstream is identified by this name, and it is
-the only thing that ties it to you. Several students may plan the same
-house issue, so this is what keeps their comments off your score and
-yours off theirs.]
+EileenXY
 
 **Plan comment**
 
-[Link to the comment where you posted your plan on the issue. Use the comment's own
-permalink. **Then paste the text of that comment underneath the link** — the pasted text is
-what this field is graded on, so copy across what you actually posted.]
+https://github.com/codepath/pathreview-ai301-fa26-s1/issues/72#issuecomment-6116976215
 
----
+## Implementation Plan for Issue #72
+
+I reproduced the original bug using:
+
+`python -m pytest tests/unit/test_security.py -q -k test_verify_with_wrong_hash_format --runxfail`
+
+The test fails with `passlib.exc.UnknownHashError`.
+
+I also investigated the malformed bcrypt hashes mentioned
+in the issue discussion:
+
+- `$2b$notarealhash` raises `ValueError`
+- `$2b$12$tooshort` raises `ValueError`
+
+Both cases were reproduced locally.
+
+### Root Cause
+
+`verify_password()` calls `pwd_context.verify()` without
+handling exceptions caused by unrecognized or malformed
+password hashes.
+
+### Proposed Fix
+
+1. Catch `ValueError` around `pwd_context.verify()` and
+   return `False`.
+2. Preserve normal verification behavior for valid bcrypt hashes.
+3. Remove the existing strict `xfail` marker.
+4. Add regression tests for the two malformed bcrypt hashes.
+
+### Existing Work and Coordination
+
+I reviewed the existing PR #75, which already proposes
+catching ValueError and removing the xfail marker.
+
+My planned contribution includes additional regression tests
+for two malformed bcrypt hashes:
+
+- `$2b$notarealhash`
+- `$2b$12$tooshort`
+
+I will check the status of PR #75 before opening my own PR.
+
+If PR #75 merges first, I will avoid duplicating its production
+changes and focus on the missing regression test coverage.
+
+If PR #75 remains open, I will coordinate with its author
+before submitting overlapping changes.
+
+### Validation
+
+I will run the Issue #72 regression test and the full
+security unit test file, checking that valid bcrypt hashes
+still behave correctly.
+
+The planned changes are limited to `core/security.py`
+and `tests/unit/test_security.py`
 
 ## Your branch
 
 **Branch**
 
-[The name of the branch you built the change on, exactly as it appears in your fork. The
-naming shape is a type prefix, then the issue number, then a short description. **The issue
-number in the branch name must be the number of the issue you claimed** — a name carrying
-any other number does not satisfy this field.]
+fix/72-verify-password-unknown-hash
 
 **Evidence**
 
-[Your Unit 2 reproduction steps re-run against the built change: the before, then the
-after. Paste both, including the commands you ran and their output.]
+### Before the fix
+
+Command:
+
+```bash
+python -m pytest tests/unit/test_security.py -q -k test_verify_with_wrong_hash_format --runxfail
+```
+
+Output (relevant excerpt):
+
+```text
+FAILED tests/unit/test_security.py::test_verify_with_wrong_hash_format
+passlib.exc.UnknownHashError: hash could not be identified
+
+1 failed, 24 deselected, 2 warnings
+```
+
+The original implementation raised `UnknownHashError` instead of
+returning `False` for an unrecognized password hash.
+
+### After the fix
+
+Command:
+
+```bash
+python -m pytest tests/unit/test_security.py -q -k test_verify_with_wrong_hash_format
+```
+
+Output:
+
+```text
+1 passed, 24 deselected, 2 warnings
+```
+
+The same regression test now passes because `verify_password()`
+returns `False` for an invalid password hash.
+
+### Additional validation
+
+I added two regression tests for malformed bcrypt hashes:
+- `$2b$notarealhash`
+- `$2b$12$tooshort`
+
+Security test results:
+
+```text
+27 passed, 2 warnings
+```
+
+Full unit test results (`make test-unit`):
+
+```text
+378 passed, 52 xfailed, 3 warnings
+```
+
+Code quality checks (`make check`):
+- Ruff: All checks passed.
+- Black: Formatting completed.
+- mypy: Success: no issues found in 76 source files.
 
 ## Eval iterations
 
@@ -50,28 +156,59 @@ fields.
 
 **Run history**
 
-[The agreement score of each run you did, in order. A single run is a complete answer if
-only one run occurred. **The last score in your list must match the agreement line in the
-`eval-run.txt` you committed** — that file is the record of your final run.]
+Run 1: 20/20 agreement (PASS).
+
+I ran one complete evaluation using the Sonnet model.
+The rubric correctly classified all 20 scored packages,
+achieving 20/20 agreement with the gold labels.
+
+All five categories passed:
+- clear-accept: 7/7
+- scope-creep: 4/4
+- thread-convention: 2/2
+- unbuildable: 3/3
+- wrong-cause: 4/4
+
+The final result matches the agreement line in eval-run.txt:
+agreement: 20/20 scored items (bar: 18/20: PASS).
 
 **Package analysis**
 
-[Pick one scored package (`pkg-01` through `pkg-20` — the four `calib-` packages are never
-scored). Name it by id, say what your rubric decided and what the gold label said, and
-explain why your rubric read it that way.]
+Package: pkg-06
+Gold label: reject
+My rubric verdict: reject  
+
+My rubric rejected pkg-06 because it violates the required Scope check. The reported bug concerns saving preloaded images with containerd, which produces an empty tar file while returning exit code 0.
+However, the candidate plan proposes upgrading containerd across all runtimes, introducing a unified image-operations abstraction for Docker, containerd, and CRI-O, and expanding the CI matrix.
+These changes significantly broaden the implementation beyond the reported failure. Although some improvements may be useful, the plan does not sufficiently justify why such a large refactoring is necessary to resolve this specific issue.
+Therefore, the Scope check fails, resulting in a reject verdict consistent with the gold label.
 
 **Check rationale**
 
-[Quote one check from the `rubric.md` you uploaded to `tools/plan-check/`, exactly as it reads now.
-Then say why it reads that way — what you revised to get there, or what you rejected in
-favour of it.]
+
+I selected the Scope check from my rubric.md:
+
+| Check | Evidence | Pass condition | Weight |
+|---|---|---|---|
+| Scope | The plan's scope statement, affected components, and proposed changes compared with the issue. | The changes are bounded to the reported problem, and unrelated work is excluded or justified. | required |
+
+I made Scope a required check because a plan can correctly
+identify a bug but still propose unnecessary changes.
+
+This check focuses on whether the proposed implementation
+stays within the reported issue rather than judging the
+plan's formatting.
+
+I chose to evaluate the actual scope of the proposed changes
+instead of requiring a particular document structure.
+
+This makes the check applicable to different projects and
+rejects unrelated changes unless they are justified.
 
 **Trade-offs**
 
-[Every check gives something up. Any one of these is a complete answer: a package whose
-result it changes, a canary you re-ran with `--only`, a case you accept it will miss, or a
-stated reason nothing changed elsewhere. "Nothing changed, and here is how I know" earns
-the point in full when the reason follows.]
+The Scope check intentionally prioritizes a focused fix over broader architectural improvements. In pkg-06, it rejects a plan that includes potentially useful changes, such as unifying image operations across runtimes, because those changes are not sufficiently justified by the reproduced bug.
+This creates a trade-off: the rubric may reject ambitious improvements that could benefit the project in the long term. However, I accept this limitation because the purpose of the skill is to determine whether a plan is ready to execute for a specific issue.
 
 ---
 
