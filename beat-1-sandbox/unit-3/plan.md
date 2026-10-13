@@ -120,5 +120,8 @@ to avoid duplicating existing work.
 
 ## Deviations
 
-None yet. Any changes from this plan during implementation
-will be documented here.
+No implementation deviations: the diff remains limited to core/security.py and tests/unit/test_security.py as planned.
+
+Coordination update for Unit 4: PR #75 remains open and unmerged. The Unit 4 assignment and sandbox scope explicitly allow each student to open their own PR on the same issue, so this submission follows that course rule instead of waiting for another student's PR. The additional malformed-bcrypt regression tests remain part of the original plan. No claim is made that another contributor approved this submission.
+
+Verification update: Unit 4 checks were re-run by Codex on the existing Unit 3 branch in a separate checkout using the existing Python 3.11.9 virtual environment. The original reproduction now passes, the security file has 27 passing tests, and the full unit suite has 378 passed and 52 xfailed. Integration tests contain no cases; make test-integration reports pytest exit 5 and make exit 2. This is disclosed, not recorded as a passing integration suite. CI has not yet run for this PR.
